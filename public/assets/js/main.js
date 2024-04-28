@@ -1,164 +1,80 @@
-var socket = io();
-        var chatForm = document.getElementById('chatForm');
-        var teksPesan = document.querySelector('#teksPesan');  
-        var userJoin = document.querySelector('.user-join');
-        var chatBox = document.querySelector('.chat-box');
-        var input = document.querySelector('#input');
+// Menghubungkan ke server Socket.IO
+const socket = io('http://localhost:3000');
 
-        // random color
-        // function getRandomColor() {
-        //         var letters = '0123456789ABCDEF';
-        //         var color = '#';
-        //         for (var i = 0; i < 6; i++) {
-        //           color += letters[Math.floor(Math.random() * 16)];
-        //         }
-        //         return color;
-        // }
+// Mendapatkan elemen-elemen yang diperlukan dari HTML
+const chatForm = document.getElementById('chatForm');
+const teksPesan = document.getElementById('teksPesan');
+const chatBox = document.querySelector('.chat-box');
+const input = document.getElementById('input');
 
-        let username;
-        var counts = 0;
-        do{
-                username=prompt("Enter Your Name : ");
-                counts++
+// Mendapatkan nama pengguna
+let username;
+do {
+    username = prompt("Enter Your Name:");
+} while (!username);
 
-        }while(!username);
-        socket.emit("new-user-joined",username);
-        // let nama = window.localStorage.getItem('name');
-        // socket.emit("new-user-joined",nama);
+console.log(socket.connected);
+// Mengirimkan nama pengguna ke server saat bergabung
+socket.emit("new-user-joined", username);
 
+// Menambahkan pesan saat pengguna bergabung atau keluar
+socket.on('user-connected', (username) => {
+        console.log(username);
+    userJoinLeft(username, 'joined');
+});
 
-        socket.on('user-connected', (socket_name)=>{
-        userJoinLeft(socket_name,'joined');
+socket.on("user-disconnected", (username) => {
+    userJoinLeft(username, 'left');
+});
 
-        })
-        function userJoinLeft(name,status){
-            let div = document.createElement('div');
-            div.classList.add('user-join');
-            
-        //     div.style.float = 
-            let content = `<p><b>${name}</b> ${status} the chat</p>`;
-            div.innerHTML = content;
-            chatBox.appendChild(div);
-        // window.scrollTo(0, document.body.scrollHeight);
-           
+function userJoinLeft(name, status) {
+    let div = document.createElement('div');
+    div.classList.add('user-join');
+    let content = `<p><b>${name}</b> ${status} the chat</p>`;
+    div.innerHTML = content;
+    chatBox.appendChild(div);
+}
+
+// Menangani pengiriman pesan
+chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pesan = teksPesan.value.trim();
+    if (pesan !== '') {
+        appendMessage2({ user: username, message: pesan }, 'outgoing');
+        socket.emit('chat message',{ user: username, message: pesan });
+        teksPesan.value = '';
+    }
+});
+
+// Menampilkan pesan yang diterima dari server
+socket.on('message', (pesan) => {
+        if (pesan.message.user !== username) {
+            appendMessage(pesan, 'incoming');
         }
-        socket.on("user-disconnected",(user)=>{
-                userJoinLeft(user,'left');
-          });
+    });
 
-        input.addEventListener('click', (e)=> {
-                e.preventDefault();
-
-                let data ={
-                        user : username,
-                        message : teksPesan.value
-                };
-                if(teksPesan!=''){
-                        appendMessage2(data,'outgoing');
-                        socket.emit('message', data);
-                        teksPesan.value = '';
-                }
-                });
-        function appendMessage(data,status){
-                let div = document.createElement('div');
-                div.classList.add('chat',status);
-                let content = `
-                <div class="details">
-                <span>${data.user}</span>
-                <p>${data.message}</p>
-                </div>`
-                ;
-                div.innerHTML = content;
-                 chatBox.appendChild(div);
-        }
-        function appendMessage2(data,status){
-                let div = document.createElement('div');
-                div.classList.add('chat',status);
-                let content = `
-                <div class="details">
-                <p>${data.message}</p>
-                </div>`
-                ;
-                div.innerHTML = content;
-                 chatBox.appendChild(div);
-        }
-
-
-        socket.on('message', (data)=>{
-                appendMessage(data,'incoming');
-
-        })
-
-        //   e.preventDefault();
-        //  sendMsg(teksPesan.value)
-        //  teksPesan.value = ''
-        
-//   });
-//    const sendMsg = message =>{
-        //    let msg ={
-        //            user : username,
-        //            message : teksPesan.value
-        //    }
-//            socket.emit('sendMessage', msg);
-//    }
-//    socket.on('sendToAll', msg=>{
-//            display(msg,'incoming')
-//    })
-   const display = (msg,type) =>{
-           const msgDiv = document.createElement('div');
-           let className = type
-           msgDiv.classList.add(className, 'chat')
-           let innerText =`
-           <div class="chat incoming">
-              <img src="img/uhdpaper.com-824a-pc-4k.jpg" alt="">
-            <div class="details">
-                <span>${username.value}</span>
-                <p class="pesan1">Halo</p>
-            </div>
-        </div>`
-           chatBox.appendChild(msgDiv);
-   }
-//      socket.on('new message', function(msg) {
-
-//       var item = document.createElement('li');
-//       item.style.background = getRandomColor();
-      
-//       item.textContent = msg;
-//       pesan.appendChild(item);
-
-
-
-
-
-
-
-
-
-
-
-
-        
-//       window.scrollTo(0, document.body.scrollHeight);
-//   });
-  
-
-// //   let nama = window.localStorage.getItem('name');
-// //   let user = `<div class="chat outgoing">
-// //   <div class="details">
-// //       <span>${nama.value}</span>
-// //       <p class="pesan"></p>
-// //   </div>
-// // </div>
-// // </div>`
-
-// // let user2 = document.createElement('div');
-// // nameUser.innerHTML = nama;
-
-// // nameUser.forEach((a) => {
-// //         a.innerHTML = nama;
-
-// // })
-// console.log(counts);
-
-// console.log(user2);
-
+// Menambahkan pesan ke kotak obrolan
+function appendMessage(data, status) {
+    let div = document.createElement('div');
+    div.classList.add('chat', status);
+    let content = `
+        <div class="details">
+            <span>${data.message.user}</span>
+            <p>${data.message.message}</p>
+        </div>
+    `;
+    div.innerHTML = content;
+    chatBox.appendChild(div);
+}
+function appendMessage2(data, status) {
+    let div = document.createElement('div');
+    div.classList.add('chat', status);
+    let content = `
+        <div class="details">
+            <span>You</span>
+            <p>${data.message}</p>
+        </div>
+    `;
+    div.innerHTML = content;
+    chatBox.appendChild(div);
+}
